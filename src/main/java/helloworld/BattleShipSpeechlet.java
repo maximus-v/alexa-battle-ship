@@ -25,6 +25,11 @@ import com.amazon.speech.ui.PlainTextOutputSpeech;
 import com.amazon.speech.ui.Reprompt;
 import com.amazon.speech.ui.SimpleCard;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
 /**
  * This sample shows how to create a simple speechlet for handling speechlet requests.
  */
@@ -86,7 +91,28 @@ public class BattleShipSpeechlet implements Speechlet {
         } else {
             String letter = intent.getSlot(SLOT_LETTER).getValue();
             int number = Integer.valueOf(intent.getSlot(SLOT_NUMBER).getValue());
+
+            try {
+                String urlString = "http://localhost:8080/shot?letter=" + letter + "&number=" + number;
+                URL url = new URL(urlString);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Accecpt", "application/json");
+
+                if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
+                }
+
+                log.info(String.valueOf(conn.getResponseCode()));
+
+            } catch (MalformedURLException e) {
+                // TODO handle exception properly
+            } catch (IOException e) {
+                // TODO handle exception properly
+            }
+
             speechText = "Ich schiesse auf " + letter + " " + number;
+
             session.setAttribute(SESSION_LETTER, letter);
             session.setAttribute(SESSION_NUMBER, number);
         }
