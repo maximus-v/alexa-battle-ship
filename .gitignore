@@ -1,0 +1,39 @@
+node_modules/
+.idea/
+.vscode/
+*.log
+**/*.iml
+target/
+coverage/
+index.js.map
+.env
+*.tgz
+**/*.d.ts
+
+codeship.aes
+docker/aws.env
+
+# Do not track the generated javascript and map files from typescript
+bin/**/*.js
+bin/**/*.map
+lib/**/*.js
+lib/**/*.map
+test/**/*.js
+test/**/*.map
+test/resources/.bst/config
+
+.nyc_output/
+
+**/.DS_Store
+
+typings/globals/
+typings/modules/
+
+# generated docs
+site/
+
+# Include all stuff under test/resources
+!test/resources/*
+!test/resources/exampleProject/*
+!test/resources/deployProject/*
+test/resources/ContentPromoPromptCopy.m4a
