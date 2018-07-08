@@ -28,8 +28,8 @@ import com.amazon.speech.ui.SimpleCard;
 /**
  * This sample shows how to create a simple speechlet for handling speechlet requests.
  */
-public class HelloWorldSpeechlet implements Speechlet {
-    private static final Logger log = LoggerFactory.getLogger(HelloWorldSpeechlet.class);
+public class BattleShipSpeechlet implements Speechlet {
+    private static final Logger log = LoggerFactory.getLogger(BattleShipSpeechlet.class);
     private static final String SLOT_LETTER = "Letter";
     private static final String SLOT_NUMBER = "Number";
     private static final String SESSION_LETTER = "choosenLetter";

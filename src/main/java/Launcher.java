@@ -10,7 +10,7 @@
 
 import com.amazon.speech.speechlet.Speechlet;
 import com.amazon.speech.speechlet.servlet.SpeechletServlet;
-import helloworld.HelloWorldSpeechlet;
+import helloworld.BattleShipSpeechlet;
 import org.apache.log4j.PropertyConfigurator;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -59,7 +59,7 @@ public final class Launcher {
 
         server.setHandler(context);
 
-        context.addServlet(new ServletHolder(createServlet(new HelloWorldSpeechlet())), "/ship");
+        context.addServlet(new ServletHolder(createServlet(new BattleShipSpeechlet())), "/ship");
 
         server.start();
         server.join();

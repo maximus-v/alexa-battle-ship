@@ -1,7 +1,5 @@
-HelloWorldIntent say hello
-HelloWorldIntent say hello world
-HelloWorldIntent hello
-HelloWorldIntent say hi
-HelloWorldIntent say hi world
-HelloWorldIntent hi
-HelloWorldIntent how are you
+ShotIntent Feuer auf {Buchstabe} {Zahl}
+ShotIntent Schieße auf {Buchstabe} {Zahl}
+NewstartIntent Ein neues Spiel
+NewstartIntent Ich möchte nochmal spielen
+NewstartIntent Starte das Spiel neu
