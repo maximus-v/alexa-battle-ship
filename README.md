@@ -1,15 +1,22 @@
-# Bespoken Java Sample
-Alexa Demo
+# Bespoken Endpoint for Alexa
+Endpoint for our BattleShip-game
 
-## Concepts
-These samples shows how to create Alexa Skill working with the bst
+## Running server
 
-## Debugging
-To run it locally, use this command:
-`mvn compile exec:java -DdisableRequestSignatureCheck=true`
-
-## Releasing
-Running release prepare will version the repo - it is sufficient
-`mvn -B release:clean release:prepare release:perform`
-
-The -B flag runs it in non-interactive mode.
+* install NodeJS and set environment variables accordingly
+* install bespoken:
+  * $ npm install -g bespoken-tools
+* clone project from Github
+  * $ git clone https://github.com/maximus-v/alexa-battle-ship.git
+* compile and run project
+  * $ mvn compile
+  * $ mvn exec:java -Dexec.executable="java" -DdisableRequestSignatureCheck=true -Dexec.args=$@ 
+  * project will run on port 9999
+* start server
+  * $ bst proxy http 9999
+* create skill on Amazon Developer Console
+  * use given IntentSchema
+* when setting the endpoint use url provided by local bespoken server:
+  * add /hello to the url
+  * when setting certificate choose:  "My development endpoint is a subdomain of a domain that has a wildcard certificate from a certificate authority"
+* test skill

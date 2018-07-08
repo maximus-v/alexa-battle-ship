@@ -59,7 +59,7 @@ public final class Launcher {
 
         server.setHandler(context);
 
-        context.addServlet(new ServletHolder(createServlet(new HelloWorldSpeechlet())), "/hello");
+        context.addServlet(new ServletHolder(createServlet(new HelloWorldSpeechlet())), "/ship");
 
         server.start();
         server.join();
