@@ -7,8 +7,11 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-package helloworld;
+package alexa;
 
+import alexa.battleship.ResponseHelper;
+import com.amazon.speech.ui.SsmlOutputSpeech;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,10 +28,11 @@ import com.amazon.speech.ui.PlainTextOutputSpeech;
 import com.amazon.speech.ui.Reprompt;
 import com.amazon.speech.ui.SimpleCard;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 /**
  * This sample shows how to create a simple speechlet for handling speechlet requests.
@@ -39,18 +43,19 @@ public class BattleShipSpeechlet implements Speechlet {
     private static final String SLOT_NUMBER = "Number";
     private static final String SESSION_LETTER = "choosenLetter";
     private static final String SESSION_NUMBER = "choosenNumber";
+    private ResourceBundle messages;
+    private ResponseHelper rHelper;
 
     @Override
-    public void onSessionStarted(final SessionStartedRequest request, final Session session)
-            throws SpeechletException {
-        log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(),
-                session.getSessionId());
-        // any initialization logic goes here
+    public void onSessionStarted(final SessionStartedRequest request, final Session session){
+        log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(), session.getSessionId());
+        Locale deLocale = new Locale("de","DE");
+        messages = ResourceBundle.getBundle("ApplicationMessages", deLocale);
+        rHelper = new ResponseHelper(messages);
     }
 
     @Override
-    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session)
-            throws SpeechletException {
+    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session) {
         log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
                 session.getSessionId());
         return getWelcomeResponse();
@@ -65,8 +70,8 @@ public class BattleShipSpeechlet implements Speechlet {
         Intent intent = request.getIntent();
         String intentName = (intent != null) ? intent.getName() : null;
 
-        if ("HelloWorldIntent".equals(intentName)) {
-            return getHelloResponse();
+        if ("NewstartIntent".equals(intentName)) {
+            return getNewstartResponse();
         } else if ("AMAZON.HelpIntent".equals(intentName)) {
             return getHelpResponse();
         } else if ("ShotIntent".equals(intentName)) {
@@ -77,19 +82,20 @@ public class BattleShipSpeechlet implements Speechlet {
     }
 
     @Override
-    public void onSessionEnded(final SessionEndedRequest request, final Session session)
-            throws SpeechletException {
+    public void onSessionEnded(final SessionEndedRequest request, final Session session) {
         log.info("onSessionEnded requestId={}, sessionId={}", request.getRequestId(),
                 session.getSessionId());
         // any cleanup logic goes here
     }
 
     private SpeechletResponse getShotResponse(Intent intent, Session session) {
-        String speechText;
+        String speechText = "<speak>";
+        String eventPlayerResult = "";
+        String eventComputerResult = "";
         if (intent.getSlot(SLOT_LETTER).getValue() == null && intent.getSlot(SLOT_NUMBER).getValue() == null) {
-            speechText = "Ich habe dich leider nicht verstanden";
+            speechText = messages.getString("alexa.battleship.what");
         } else {
-            String letter = intent.getSlot(SLOT_LETTER).getValue();
+            String letter = intent.getSlot(SLOT_LETTER).getValue().trim();
             int number = Integer.valueOf(intent.getSlot(SLOT_NUMBER).getValue());
 
             try {
@@ -100,26 +106,51 @@ public class BattleShipSpeechlet implements Speechlet {
                 conn.setRequestProperty("Accecpt", "application/json");
 
                 if (conn.getResponseCode() != 200) {
+
                     throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
                 }
+                //how do I get json object and print it as string
+                BufferedReader br = new BufferedReader(new InputStreamReader(
+                        (conn.getInputStream()))); // Getting the response from the webservice
 
-                log.info(String.valueOf(conn.getResponseCode()));
+                StringBuilder sb = new StringBuilder();
 
-            } catch (MalformedURLException e) {
-                // TODO handle exception properly
-            } catch (IOException e) {
-                // TODO handle exception properly
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+                JSONObject json = new JSONObject(sb.toString());
+                conn.disconnect();
+                log.info(String.valueOf(conn.getResponseCode())+json);
+                eventPlayerResult = json.getString("playerEventResult");
+                eventComputerResult = json.getString("computerEventResult");
+                log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
+                if (!eventPlayerResult.isEmpty()) {
+                    eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
+                }
+                if(!eventComputerResult.isEmpty()) {
+                    eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
+                }
+                log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
+
+            }  catch (IOException e) {
+                speechText = messages.getString("alexa.battleship.connection.error");
+                log.error("alexa.battleship.connection.error",e);
             }
 
-            speechText = "Ich schiesse auf " + letter + " " + number;
+
+            speechText += "Ich schiesse auf " + letter + " " + number;
+            speechText += "<break time=\"1s\"/> "+eventPlayerResult;
+            speechText += "<break time=\"1s\"/> "+eventComputerResult;
+            speechText += "</speak>";
 
             session.setAttribute(SESSION_LETTER, letter);
             session.setAttribute(SESSION_NUMBER, number);
         }
 
         // Create the plain text output.
-        PlainTextOutputSpeech speech = new PlainTextOutputSpeech();
-        speech.setText(speechText);
+        SsmlOutputSpeech speech = new SsmlOutputSpeech();
+        speech.setSsml(speechText);
 
         return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
     }
@@ -130,7 +161,7 @@ public class BattleShipSpeechlet implements Speechlet {
      * @return SpeechletResponse spoken and visual response for the given intent
      */
     private SpeechletResponse getWelcomeResponse() {
-        String speechText = "Willkommen beim Schiffe versenken!";
+        String speechText = messages.getString("alexa.battleship.welcome.text");
 
         // Create the Simple card content.
         SimpleCard card = new SimpleCard();
@@ -149,23 +180,41 @@ public class BattleShipSpeechlet implements Speechlet {
     }
 
     /**
-     * Creates a {@code SpeechletResponse} for the hello intent.
+     * Creates a {@code SpeechletResponse} for the Newstart intent.
      *
      * @return SpeechletResponse spoken and visual response for the given intent
      */
-    private SpeechletResponse getHelloResponse() {
-        String speechText = "Hello world";
+    private SpeechletResponse getNewstartResponse() {
+        String speechText = messages.getString("alexa.battleship.newstart.text");
+        try {
+            String urlString = "http://localhost:8080/newstart";
+            URL url = new URL(urlString);
 
-        // Create the Simple card content.
-        SimpleCard card = new SimpleCard();
-        card.setTitle("HelloWorld");
-        card.setContent(speechText);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accecpt", "application/json");
 
-        // Create the plain text output.
-        PlainTextOutputSpeech speech = new PlainTextOutputSpeech();
-        speech.setText(speechText);
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
+            }
+            conn.disconnect();
+        } catch (IOException e){
+            log.error("alexa.battleship.connection.error",e);
+            speechText = messages.getString("alexa.battleship.connection.error");
+        }finally {
+            // Create the Simple card content.
+            SimpleCard card = new SimpleCard();
+            card.setTitle("Newstart");
+            card.setContent(speechText);
 
-        return SpeechletResponse.newTellResponse(speech, card);
+            // Create the plain text output.
+            PlainTextOutputSpeech speech = new PlainTextOutputSpeech();
+            speech.setText(speechText);
+            Reprompt reprompt = new Reprompt();
+            reprompt.setOutputSpeech(speech);
+
+            return SpeechletResponse.newAskResponse(speech, reprompt, card);
+        }
     }
 
     /**
@@ -174,11 +223,11 @@ public class BattleShipSpeechlet implements Speechlet {
      * @return SpeechletResponse spoken and visual response for the given intent
      */
     private SpeechletResponse getHelpResponse() {
-        String speechText = "You can say hello to me!";
+        String speechText = messages.getString("alexa.battleship.help");
 
         // Create the Simple card content.
         SimpleCard card = new SimpleCard();
-        card.setTitle("HelloWorld");
+        card.setTitle("Help");
         card.setContent(speechText);
 
         // Create the plain text output.
@@ -194,7 +243,7 @@ public class BattleShipSpeechlet implements Speechlet {
 
     private Reprompt createRepromptSpeech() {
         PlainTextOutputSpeech repromptSpeech = new PlainTextOutputSpeech();
-        repromptSpeech.setText("ich habe dich nicht verstanden");
+        repromptSpeech.setText(messages.getString("alexa.battleship.what"));
         Reprompt reprompt = new Reprompt();
         reprompt.setOutputSpeech(repromptSpeech);
         return reprompt;

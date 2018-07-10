@@ -10,7 +10,7 @@
 
 import com.amazon.speech.speechlet.Speechlet;
 import com.amazon.speech.speechlet.servlet.SpeechletServlet;
-import helloworld.BattleShipSpeechlet;
+import alexa.BattleShipSpeechlet;
 import org.apache.log4j.PropertyConfigurator;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.servlet.ServletContextHandler;
