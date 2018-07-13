@@ -76,9 +76,70 @@ public class BattleShipSpeechlet implements Speechlet {
             return getHelpResponse();
         } else if ("ShotIntent".equals(intentName)) {
             return getShotResponse(request.getIntent(), session);
+        } else if ("ShotOnPosition".equals(intentName)) {
+            return getShotOnPositionResponse(request.getIntent(), session);
         } else {
             throw new SpeechletException("Invalid Intent");
         }
+    }
+
+    private SpeechletResponse getShotOnPositionResponse(Intent intent, Session session) {
+        String speechText = "<speak>";
+        String eventPlayerResult = "";
+        String eventComputerResult = "";
+        Integer number = null;
+        String letter = "";
+        try {
+            String urlString = "http://localhost:8080/shotOnPosition";
+            URL url = new URL(urlString);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accecpt", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+
+                throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
+            }
+            //how do I get json object and print it as string
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream()))); // Getting the response from the webservice
+
+            StringBuilder sb = new StringBuilder();
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+            JSONObject json = new JSONObject(sb.toString());
+            conn.disconnect();
+            log.info(String.valueOf(conn.getResponseCode())+json);
+            eventPlayerResult = json.getString("playerEventResult");
+            letter = json.getString("letter");
+            number = json.getInt("number");
+            eventComputerResult = json.getString("computerEventResult");
+            log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
+            if (!eventPlayerResult.isEmpty()) {
+                eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
+            }
+            if(!eventComputerResult.isEmpty()) {
+                eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
+            }
+            log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
+
+        }  catch (IOException e) {
+            speechText = messages.getString("alexa.battleship.connection.error");
+            log.error("alexa.battleship.connection.error",e);
+        }
+
+
+        speechText += "Ich schiesse auf " + letter + " " + number;
+        speechText += "<break time=\"1s\"/> "+eventPlayerResult;
+        speechText += "<break time=\"1s\"/> "+eventComputerResult;
+        speechText += "</speak>";
+        SsmlOutputSpeech speech = new SsmlOutputSpeech();
+        speech.setSsml(speechText);
+
+        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
     }
 
     @Override
