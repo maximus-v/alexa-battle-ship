@@ -30,6 +30,8 @@ import com.amazon.speech.ui.SimpleCard;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -45,6 +47,7 @@ public class BattleShipSpeechlet implements Speechlet {
     private static final String SESSION_NUMBER = "choosenNumber";
     private ResourceBundle messages;
     private ResponseHelper rHelper;
+    private Boolean canonPosition = false;
 
     @Override
     public void onSessionStarted(final SessionStartedRequest request, final Session session){
@@ -89,18 +92,58 @@ public class BattleShipSpeechlet implements Speechlet {
         String eventComputerResult = "";
         Integer number = null;
         String letter = "";
+        Boolean answer = false;
+
+        if (canonPosition == false) {
+            String urlString = "http://localhost:8080/canonPosition";
+            JSONObject json = restRequest(urlString);
+                answer = json.getBoolean("requestAccept");
+
+                speechText += "Ok Wohin soll ich schießen ?";
+        }else{
+
+                String urlString = "http://localhost:8080/shotOnPosition";
+                JSONObject json = restRequest(urlString);
+                //how do I get json object and print it as string
+
+
+                eventPlayerResult = json.getString("playerEventResult");
+                letter = json.getString("letter");
+                number = json.getInt("number");
+                eventComputerResult = json.getString("computerEventResult");
+                if (!eventPlayerResult.isEmpty()) {
+                    eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
+                }
+                if (!eventComputerResult.isEmpty()) {
+                    eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
+                }
+            speechText += "Ich schiesse auf " + letter + " " + number;
+            speechText += "<break time=\"1s\"/> " + eventPlayerResult;
+            speechText += "<break time=\"1s\"/> " + eventComputerResult;
+        }
+
+        if (answer != null){
+            canonPosition = answer;
+            System.out.println("CanonPosition = ________"+canonPosition);
+        }
+        speechText += "</speak>";
+        SsmlOutputSpeech speech = new SsmlOutputSpeech();
+        speech.setSsml(speechText);
+        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
+    }
+
+    public JSONObject restRequest(String urlString) {
+        URL url = null;
         try {
-            String urlString = "http://localhost:8080/shotOnPosition";
-            URL url = new URL(urlString);
+            url = new URL(urlString);
+
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Accecpt", "application/json");
 
             if (conn.getResponseCode() != 200) {
-
                 throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
             }
-            //how do I get json object and print it as string
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (conn.getInputStream()))); // Getting the response from the webservice
 
@@ -112,34 +155,19 @@ public class BattleShipSpeechlet implements Speechlet {
             }
             JSONObject json = new JSONObject(sb.toString());
             conn.disconnect();
-            log.info(String.valueOf(conn.getResponseCode())+json);
-            eventPlayerResult = json.getString("playerEventResult");
-            letter = json.getString("letter");
-            number = json.getInt("number");
-            eventComputerResult = json.getString("computerEventResult");
-            log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
-            if (!eventPlayerResult.isEmpty()) {
-                eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
-            }
-            if(!eventComputerResult.isEmpty()) {
-                eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
-            }
-            log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
-
-        }  catch (IOException e) {
-            speechText = messages.getString("alexa.battleship.connection.error");
-            log.error("alexa.battleship.connection.error",e);
+            log.info(String.valueOf(conn.getResponseCode()) + json);
+            return json;
+        } catch (MalformedURLException e) {
+            log.error("alexa.battleship.connection.error", e);
+            e.printStackTrace();
+        } catch (ProtocolException e) {
+            log.error("alexa.battleship.connection.error", e);
+            e.printStackTrace();
+        } catch (IOException e) {
+            log.error("alexa.battleship.connection.error", e);
+            e.printStackTrace();
         }
-
-
-        speechText += "Ich schiesse auf " + letter + " " + number;
-        speechText += "<break time=\"1s\"/> "+eventPlayerResult;
-        speechText += "<break time=\"1s\"/> "+eventComputerResult;
-        speechText += "</speak>";
-        SsmlOutputSpeech speech = new SsmlOutputSpeech();
-        speech.setSsml(speechText);
-
-        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
+        return null;
     }
 
     @Override
@@ -159,45 +187,17 @@ public class BattleShipSpeechlet implements Speechlet {
             String letter = intent.getSlot(SLOT_LETTER).getValue().trim();
             int number = Integer.valueOf(intent.getSlot(SLOT_NUMBER).getValue());
 
-            try {
                 String urlString = "http://localhost:8080/shot?letter=" + letter + "&number=" + number;
-                URL url = new URL(urlString);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Accecpt", "application/json");
-
-                if (conn.getResponseCode() != 200) {
-
-                    throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
-                }
-                //how do I get json object and print it as string
-                BufferedReader br = new BufferedReader(new InputStreamReader(
-                        (conn.getInputStream()))); // Getting the response from the webservice
-
-                StringBuilder sb = new StringBuilder();
-
-                String line;
-                while ((line = br.readLine()) != null) {
-                    sb.append(line);
-                }
-                JSONObject json = new JSONObject(sb.toString());
-                conn.disconnect();
-                log.info(String.valueOf(conn.getResponseCode())+json);
+                JSONObject json = restRequest(urlString);
                 eventPlayerResult = json.getString("playerEventResult");
                 eventComputerResult = json.getString("computerEventResult");
-                log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
                 if (!eventPlayerResult.isEmpty()) {
                     eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
                 }
                 if(!eventComputerResult.isEmpty()) {
                     eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
                 }
-                log.info(String.valueOf(conn.getResponseCode()+eventPlayerResult));
 
-            }  catch (IOException e) {
-                speechText = messages.getString("alexa.battleship.connection.error");
-                log.error("alexa.battleship.connection.error",e);
-            }
 
 
             speechText += "Ich schiesse auf " + letter + " " + number;
