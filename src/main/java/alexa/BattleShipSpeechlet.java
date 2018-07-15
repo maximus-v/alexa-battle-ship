@@ -99,7 +99,12 @@ public class BattleShipSpeechlet implements Speechlet {
             JSONObject json = restRequest(urlString);
                 answer = json.getBoolean("requestAccept");
 
-                speechText += "Ok Wohin soll ich schießen ?";
+                if (answer = true) {
+                    speechText += "Ok Wohin soll ich schiessen ?";
+                }else{
+                    speechText += "Sie müssen eine Kanone angeben";
+
+                }
         }else{
 
                 String urlString = "http://localhost:8080/shotOnPosition";

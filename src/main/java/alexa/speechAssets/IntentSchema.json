@@ -46,6 +46,15 @@
             "Ich möchte nochmal spielen",
             "Starte das Spiel neu"
           ]
+        },
+        {
+          "name": "ShotOnPosition",
+          "slots": [],
+          "samples": [
+            "schieß damit",
+            "Schieß mit der",
+            "Nimm das"
+          ]
         }
       ],
       "types": [

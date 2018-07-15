@@ -3,3 +3,6 @@ ShotIntent Schieße auf {Buchstabe} {Zahl}
 NewstartIntent Ein neues Spiel
 NewstartIntent Ich möchte nochmal spielen
 NewstartIntent Starte das Spiel neu
+ShotOnPosition schieß damit
+ShotOnPosition Schieß mit der
+ShotOnPosition Nimm das
