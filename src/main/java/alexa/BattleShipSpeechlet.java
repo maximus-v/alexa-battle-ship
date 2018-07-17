@@ -1,34 +1,28 @@
 /**
-    Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-
-    Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
-
-        http://aws.amazon.com/apache2.0/
-
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+ * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+ * <p>
+ * http://aws.amazon.com/apache2.0/
+ * <p>
+ * or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 package alexa;
 
 import alexa.battleship.ResponseHelper;
+import com.amazon.speech.slu.Intent;
+import com.amazon.speech.speechlet.*;
+import com.amazon.speech.ui.PlainTextOutputSpeech;
+import com.amazon.speech.ui.Reprompt;
+import com.amazon.speech.ui.SimpleCard;
 import com.amazon.speech.ui.SsmlOutputSpeech;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazon.speech.slu.Intent;
-import com.amazon.speech.speechlet.IntentRequest;
-import com.amazon.speech.speechlet.LaunchRequest;
-import com.amazon.speech.speechlet.Session;
-import com.amazon.speech.speechlet.SessionEndedRequest;
-import com.amazon.speech.speechlet.SessionStartedRequest;
-import com.amazon.speech.speechlet.Speechlet;
-import com.amazon.speech.speechlet.SpeechletException;
-import com.amazon.speech.speechlet.SpeechletResponse;
-import com.amazon.speech.ui.PlainTextOutputSpeech;
-import com.amazon.speech.ui.Reprompt;
-import com.amazon.speech.ui.SimpleCard;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -50,9 +44,9 @@ public class BattleShipSpeechlet implements Speechlet {
     private Boolean canonPosition = false;
 
     @Override
-    public void onSessionStarted(final SessionStartedRequest request, final Session session){
+    public void onSessionStarted(final SessionStartedRequest request, final Session session) {
         log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(), session.getSessionId());
-        Locale deLocale = new Locale("de","DE");
+        Locale deLocale = new Locale("de", "DE");
         messages = ResourceBundle.getBundle("ApplicationMessages", deLocale);
         rHelper = new ResponseHelper(messages);
     }
@@ -77,13 +71,35 @@ public class BattleShipSpeechlet implements Speechlet {
             return getNewstartResponse();
         } else if ("AMAZON.HelpIntent".equals(intentName)) {
             return getHelpResponse();
+        } else if ("AMAZON.CancelIntent".equals(intentName)) {
+            return cancel();
         } else if ("ShotIntent".equals(intentName)) {
             return getShotResponse(request.getIntent(), session);
         } else if ("ShotOnPosition".equals(intentName)) {
             return getShotOnPositionResponse(request.getIntent(), session);
         } else {
-            throw new SpeechletException("Invalid Intent");
+            return notIntent();
         }
+    }
+
+    private SpeechletResponse notIntent() {
+        String speechText = messages.getString("alexa.battleship.not.intent");
+
+        // Create the plain text output.
+        PlainTextOutputSpeech speech = new PlainTextOutputSpeech();
+        speech.setText(speechText);
+
+        return SpeechletResponse.newTellResponse(speech);
+    }
+
+    private SpeechletResponse cancel() {
+        String speechText = messages.getString("alexa.battleship.exit.text");
+
+        // Create the plain text output.
+        PlainTextOutputSpeech speech = new PlainTextOutputSpeech();
+        speech.setText(speechText);
+
+        return SpeechletResponse.newTellResponse(speech);
     }
 
     private SpeechletResponse getShotOnPositionResponse(Intent intent, Session session) {
@@ -93,48 +109,48 @@ public class BattleShipSpeechlet implements Speechlet {
         Integer number = null;
         String letter = "";
         Boolean answer = false;
+        String reprompt = "Gib mir eine Kanone!";
 
         if (canonPosition == false) {
             String urlString = "http://localhost:8080/canonPosition";
             JSONObject json = restRequest(urlString);
-                answer = json.getBoolean("requestAccept");
+            answer = json.getBoolean("requestAccept");
 
-                if (answer = true) {
-                    speechText += "Ok Wohin soll ich schiessen ?";
-                }else{
-                    speechText += "Sie müssen eine Kanone angeben";
+            if (answer) {
+                speechText += messages.getString("alexa.battleship.ask.where.shot");
+                reprompt = messages.getString("alexa.battleship.ask.where.shot");
+            } else {
+                speechText += messages.getString("alexa.battleship.not.canon");
+            }
+        } else {
 
-                }
-        }else{
+            String urlString = "http://localhost:8080/shotOnPosition";
+            JSONObject json = restRequest(urlString);
+            //how do I get json object and print it as string
 
-                String urlString = "http://localhost:8080/shotOnPosition";
-                JSONObject json = restRequest(urlString);
-                //how do I get json object and print it as string
-
-
-                eventPlayerResult = json.getString("playerEventResult");
-                letter = json.getString("letter");
-                number = json.getInt("number");
-                eventComputerResult = json.getString("computerEventResult");
-                if (!eventPlayerResult.isEmpty()) {
-                    eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
-                }
-                if (!eventComputerResult.isEmpty()) {
-                    eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
-                }
-            speechText += "Ich schiesse auf " + letter + " " + number;
+            eventPlayerResult = json.getString("playerEventResult");
+            letter = json.getString("letter");
+            number = json.getInt("number");
+            eventComputerResult = json.getString("computerEventResult");
+            if (!eventPlayerResult.isEmpty()) {
+                eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
+            }
+            if (!eventComputerResult.isEmpty()) {
+                eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
+            }
+            speechText += "Ich schiesse auf " + letter + " " + number + ".";
             speechText += "<break time=\"1s\"/> " + eventPlayerResult;
             speechText += "<break time=\"1s\"/> " + eventComputerResult;
         }
 
-        if (answer != null){
+        if (answer != null) {
             canonPosition = answer;
-            System.out.println("CanonPosition = ________"+canonPosition);
+            System.out.println("CanonPosition = ________" + canonPosition);
         }
         speechText += "</speak>";
         SsmlOutputSpeech speech = new SsmlOutputSpeech();
         speech.setSsml(speechText);
-        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
+        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech(reprompt));
     }
 
     public JSONObject restRequest(String urlString) {
@@ -180,34 +196,35 @@ public class BattleShipSpeechlet implements Speechlet {
         log.info("onSessionEnded requestId={}, sessionId={}", request.getRequestId(),
                 session.getSessionId());
         // any cleanup logic goes here
+
     }
 
     private SpeechletResponse getShotResponse(Intent intent, Session session) {
         String speechText = "<speak>";
         String eventPlayerResult = "";
         String eventComputerResult = "";
+        String reprompt = "Sag mir wohin ich schißen soll";
         if (intent.getSlot(SLOT_LETTER).getValue() == null && intent.getSlot(SLOT_NUMBER).getValue() == null) {
             speechText = messages.getString("alexa.battleship.what");
         } else {
             String letter = intent.getSlot(SLOT_LETTER).getValue().trim();
             int number = Integer.valueOf(intent.getSlot(SLOT_NUMBER).getValue());
 
-                String urlString = "http://localhost:8080/shot?letter=" + letter + "&number=" + number;
-                JSONObject json = restRequest(urlString);
-                eventPlayerResult = json.getString("playerEventResult");
-                eventComputerResult = json.getString("computerEventResult");
-                if (!eventPlayerResult.isEmpty()) {
-                    eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
-                }
-                if(!eventComputerResult.isEmpty()) {
-                    eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
-                }
+            String urlString = "http://localhost:8080/shot?letter=" + letter + "&number=" + number;
+            JSONObject json = restRequest(urlString);
+            eventPlayerResult = json.getString("playerEventResult");
+            eventComputerResult = json.getString("computerEventResult");
+            if (!eventPlayerResult.isEmpty()) {
+                eventPlayerResult = rHelper.handlePlayerShotEvent(eventPlayerResult);
+            }
+            if (!eventComputerResult.isEmpty()) {
+                eventComputerResult = rHelper.handleComputerShotEvent(eventComputerResult);
+            }
 
 
-
-            speechText += "Ich schiesse auf " + letter + " " + number;
-            speechText += "<break time=\"1s\"/> "+eventPlayerResult;
-            speechText += "<break time=\"1s\"/> "+eventComputerResult;
+            speechText += "Ich schiesse auf " + letter + " " + number + ".";
+            speechText += "<break time=\"1s\"/> " + eventPlayerResult;
+            speechText += "<break time=\"1s\"/> " + eventComputerResult;
             speechText += "</speak>";
 
             session.setAttribute(SESSION_LETTER, letter);
@@ -218,7 +235,7 @@ public class BattleShipSpeechlet implements Speechlet {
         SsmlOutputSpeech speech = new SsmlOutputSpeech();
         speech.setSsml(speechText);
 
-        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech());
+        return SpeechletResponse.newAskResponse(speech, createRepromptSpeech(reprompt));
     }
 
     /**
@@ -264,10 +281,10 @@ public class BattleShipSpeechlet implements Speechlet {
                 throw new RuntimeException("Failed: HTTP error code: " + conn.getResponseCode());
             }
             conn.disconnect();
-        } catch (IOException e){
-            log.error("alexa.battleship.connection.error",e);
+        } catch (IOException e) {
+            log.error("alexa.battleship.connection.error", e);
             speechText = messages.getString("alexa.battleship.connection.error");
-        }finally {
+        } finally {
             // Create the Simple card content.
             SimpleCard card = new SimpleCard();
             card.setTitle("Newstart");
@@ -307,9 +324,9 @@ public class BattleShipSpeechlet implements Speechlet {
         return SpeechletResponse.newAskResponse(speech, reprompt, card);
     }
 
-    private Reprompt createRepromptSpeech() {
+    private Reprompt createRepromptSpeech(String ask) {
         PlainTextOutputSpeech repromptSpeech = new PlainTextOutputSpeech();
-        repromptSpeech.setText(messages.getString("alexa.battleship.what"));
+        repromptSpeech.setText(ask);
         Reprompt reprompt = new Reprompt();
         reprompt.setOutputSpeech(repromptSpeech);
         return reprompt;
