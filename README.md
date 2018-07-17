@@ -17,6 +17,6 @@ Endpoint for our BattleShip-game
 * create skill on Amazon Developer Console
   * use given IntentSchema
 * when setting the endpoint use url provided by local bespoken server:
-  * add /hello to the url
+  * add /ship to the url
   * when setting certificate choose:  "My development endpoint is a subdomain of a domain that has a wildcard certificate from a certificate authority"
 * test skill
